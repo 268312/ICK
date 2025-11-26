@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from layout.login_screen import OknoLogowania
+from layout.register_screen import OknoRejestracji
 
 # ustawienia wygladu
 ctk.set_appearance_mode("dark")
@@ -21,7 +22,8 @@ def otworz_okno_logowania():
     OknoLogowania(app)
 
 def zarejestruj_sie():
-    print("Kliknięto: Zarejestruj się")
+    app.withdraw()
+    OknoRejestracji(app)
 
 # przyciski
 btn_login = ctk.CTkButton(app, text="Zaloguj się", command=otworz_okno_logowania)
