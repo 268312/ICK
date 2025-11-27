@@ -17,19 +17,5 @@ class OknoLogowania(ctk.CTkToplevel):
         frame.grid(row=0, column=0)
         frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        self.label = ctk.CTkLabel(frame, text="Wprowadź login:", font=("Arial", 16))
-        self.label.pack(pady=(0, 5))
-
-        self.entry_login = ctk.CTkEntry(frame, width=200, placeholder_text="Twój login")
-        self.entry_login.pack(pady=(0, 10))
-
-        self.btn_przejdzdalej = ctk.CTkButton(frame, text="Przejdź dalej", command=self.przejdz_dalej)
-        self.btn_przejdzdalej.pack()
-
-    def przejdz_dalej(self):
         self.withdraw()
-        username = self.entry_login.get().strip()
-        if username == "":
-            print("Login nie może być pusty")  # TODO GUI
-            return
-        OknoKamera(self, mode="login", username=username)
+        OknoKamera(self, mode="login")

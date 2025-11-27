@@ -7,7 +7,7 @@ from firebase_admin import credentials, firestore
 import numpy as np
 
 if not firebase_admin._apps:
-    cred = credentials.Certificate("./serviceAccountKey.json")
+    cred = credentials.Certificate("serviceAccountKey.json")
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
@@ -102,21 +102,40 @@ class OknoKamera(ctk.CTkToplevel):
             print("Nie wykryto twarzy")
             return
 
-        match = self.check_login(self.username, vector)
+        match = self.find_user(vector)
         if match:
-            print(f"Zalogowano użytkownika: {self.username}")
+            print(f"Zalogowano użytkownika: {match['userID']}, {match['distance']}")
         else:
             print("Nieprawidłowa twarz dla podanego loginu")
 
-    def check_login(self, username, vector, threshold=0.6):
-        user_ref = db.collection("users").document(username).get()
-        if not user_ref.exists:
-            return False
+    # Function to find the best matched user to the current embedding vector
+    def find_user(self, vector, threshold=0.6):
+        users_ref = db.collection("users")
+        docs = users_ref.stream()
 
-        embedding = np.array(user_ref.to_dict()["embedding"])
-        vector = np.array(vector)
-        match = face_recognition.compare_faces([embedding], vector, tolerance=threshold)
-        return match[0]
+        best_match = None
+        best_distance = 1e9
+
+        for doc in docs:
+            user = doc.to_dict()
+            stored_embedding = user["embedding"]
+            if stored_embedding is None:
+                continue
+
+            known = np.array(stored_embedding)
+            unknown = np.array(vector)
+            distance = face_recognition.face_distance([known], unknown)[0] # finds best match through distance
+            if distance < best_distance:
+                best_distance = distance
+                best_match = {
+                    "user": doc.id,
+                    "embedding": user,
+                    "distance": distance,
+                }
+
+        if best_match and best_match["distance"] < threshold:
+            return best_match
+        return None # TODO
 
     # ***********************************************
     # FUNKCJE POMOCNICZE
