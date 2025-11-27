@@ -12,11 +12,56 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
+"""
+Function checking if vector taken during registration is already registered (checks all usernames).
+@:param vector 
+@param username 
+@param threshold default 0.35 
+@return boolean
+"""
+def embedding_already_registered(vector, threshold=0.35):
+    user_ref = db.collection("users")
+    docs = user_ref.stream()
+    unknown_embedding = np.array(vector)
+
+    for doc in docs:
+        user = doc.to_dict()
+        stored = user.get("embedding")
+        if stored is None:
+            continue
+        known_embedding = np.array(stored)
+
+        distance = face_recognition.face_distance([known_embedding], unknown_embedding)[0]
+        print(distance)
+        if distance < threshold:
+            return True
+    return False
+
+"""
+Function to check if username already exists during registration.
+@param username 
+@return boolean
+"""
+def user_already_exists(username):
+    user_ref = db.collection("users").document(username)
+    if user_ref:
+        return True
+    return False
+
+"""
+Function returning whether face embeddings are the same.
+@:param known_vector
+@:param unknown_vector
+@returns boolean
+"""
+def compare_faces(known_vector, unknown_vector):
+    results = face_recognition.compare_faces([known_vector], unknown_vector)
+    return results[0]
+
 class OknoKamera(ctk.CTkToplevel):
     def __init__(self, master, mode="register", username=None):
         """
         mode: "register" lub "login"
-        username: przy logowaniu trzeba podać login
         """
         super().__init__(master)
         self.mode = mode
@@ -60,36 +105,35 @@ class OknoKamera(ctk.CTkToplevel):
             self.video_frame.image = img_tk
         self.after(20, self.update_frame)
 
-
-
-
     # *******************************************************
     # FUNKCJE REJESTRACJI
     # *******************************************************
 
-    # Funkcja przechwytująca twarz i zapisująca go w firebase
+    """
+    Functions creating and saving the embedding in firebase, along with username. 
+    Also checks if the face or username are already registered.
+    """
     def save(self):
+        user_ref = db.collection("users").document(self.username)
         if self.last_frame is None:
             print("Brak obrazu") #TODO
             return
         vector = self.get_feature_vector(self.last_frame)
+        print(embedding_already_registered(vector))
         if vector is None:
             print("Nie udało się wygenerować wektora cech") #TODO
+        elif user_already_exists(self.username) or embedding_already_registered(vector):
+            print("User already registered") #TODO
         else:
-            self.save_embedding(self.username, vector)
+            user_ref.set({
+                "login": self.username,
+                "embedding": vector
+            })
         self.cap.release()
         self.destroy()
 
-        # zapisanie embedding do firebase
-    def save_embedding(self, username, embedding):
-        user_ref = db.collection("users").document(username)
-        user_ref.set({
-            "login": username,
-            "embedding": embedding
-        })
-
     #************************************************
-    #FUNKCJE LOGOWANIA
+    # FUNKCJE LOGOWANIA
     #************************************************
 
     def login(self):
@@ -104,11 +148,40 @@ class OknoKamera(ctk.CTkToplevel):
 
         match = self.find_user(vector)
         if match:
-            print(f"Zalogowano użytkownika: {match['userID']}, {match['distance']}")
+            print(f"Zalogowano użytkownika: {match['user']}, {match['distance']}") #TODO
         else:
             print("Nieprawidłowa twarz dla podanego loginu")
 
-    # Function to find the best matched user to the current embedding vector
+    # ***********************************************
+    # FUNKCJE POMOCNICZE
+    # ***********************************************
+
+    """
+    Function generating the feature vector.
+    """
+    def get_feature_vector(self, frame):
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        locations = face_recognition.face_locations(rgb)
+        if len(locations) == 0:
+            print("Nie wykryto twarzy") #TODO
+            return None
+
+        encodings = face_recognition.face_encodings(rgb, locations)
+
+        if len(encodings) == 0:
+            print("Nie udało się pobrać cech twarzy") #TODO
+            return None
+
+        return encodings[0].tolist()
+
+    """
+    Function to find the best matched user to the current embedding vector. The higher the threshold - the more
+     'ignorant' the recognition is. 0.6 - general match, 0.4 - strong match, 0.3 - duplicate embedding 
+     @:param vector 
+     @:param threshold default 0.6
+     @returns dictionary 
+    """
     def find_user(self, vector, threshold=0.6):
         users_ref = db.collection("users")
         docs = users_ref.stream()
@@ -137,23 +210,3 @@ class OknoKamera(ctk.CTkToplevel):
             return best_match
         return None # TODO
 
-    # ***********************************************
-    # FUNKCJE POMOCNICZE
-    # ***********************************************
-
-    # Funkcja generująca wektor cech z obrazu
-    def get_feature_vector(self, frame):
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        locations = face_recognition.face_locations(rgb)
-        if len(locations) == 0:
-            print("Nie wykryto twarzy") #TODO
-            return None
-
-        encodings = face_recognition.face_encodings(rgb, locations)
-
-        if len(encodings) == 0:
-            print("Nie udało się pobrać cech twarzy") #TODO
-            return None
-
-        return encodings[0].tolist()
