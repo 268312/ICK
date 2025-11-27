@@ -28,4 +28,8 @@ class OknoLogowania(ctk.CTkToplevel):
 
     def przejdz_dalej(self):
         self.withdraw()
-        OknoKamera(self)
+        username = self.entry_login.get().strip()
+        if username == "":
+            print("Login nie może być pusty")  # TODO GUI
+            return
+        OknoKamera(self, mode="login", username=username)

@@ -33,5 +33,5 @@ class OknoRejestracji(ctk.CTkToplevel):
             return
 
         self.withdraw()
-        OknoKamera(self, username)
+        OknoKamera(self, mode="register", username=username)
 
