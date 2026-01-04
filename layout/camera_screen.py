@@ -1,20 +1,15 @@
 import customtkinter as ctk
 from tkinter import messagebox as mbox
-import cv2
 from PIL import Image, ImageTk
-import face_recognition
-import firebase_admin
-from firebase_admin import credentials, firestore
 
-from layout.camera_utils import user_already_exists, get_feature_vector, find_user, make_circle, \
-    embedding_already_registered
-from tests.test_data import import_embeddings
-
-if not firebase_admin._apps:
-    cred = credentials.Certificate("layout/serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
-
-db = firestore.client()
+from layout.camera_utils import (
+    user_already_exists,
+    get_feature_vector,
+    find_user,
+    make_circle,
+    embedding_already_registered)
+from layout.firebase_service import get_db
+# from tests.test_data import import_embeddings
 
 class CameraScreen(ctk.CTkFrame):
     def __init__(self, parent, app):
@@ -67,10 +62,16 @@ class CameraScreen(ctk.CTkFrame):
 
     def on_show(self):
         """Called automatically when frame is shown"""
+        import cv2
+
         if not self.cap:
-            self.cap = cv2.VideoCapture(0)
+            self.cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
             self.running = True
             self.update_frame()
+
+        if not self.cap.isOpened():
+            mbox.showerror("Błąd", "Nie można uruchomić kamery")
+            return
 
     def on_hide(self):
         """Called manually before leaving the screen"""
@@ -103,6 +104,9 @@ class CameraScreen(ctk.CTkFrame):
         return True
 
     def update_frame(self):
+        import cv2
+        import face_recognition
+
         if not self.running or not self.cap:
             return
 
@@ -149,13 +153,16 @@ class CameraScreen(ctk.CTkFrame):
         Functions creating and saving the embedding in firebase, along with username.
         Also checks if the face or username are already registered.
         """
+        import cv2
+
+        db = get_db()
         if self.last_frame is None:
             mbox.showerror("Błąd", "Nie wykryto obrazu. Spróbuj ponownie")
             return
 
         vector = get_feature_vector(self.last_frame)
-        img = Image.fromarray(cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2RGB))
-        import_embeddings.save_angle_embedding(vector, img, "from_above", 0)
+        # img = Image.fromarray(cv2.cvtColor(self.last_frame, cv2.COLOR_BGR2RGB))
+        # import_embeddings.save_angle_embedding(vector, img, "from_above", 0)
         if vector is None:
             return
 

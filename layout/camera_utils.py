@@ -1,26 +1,8 @@
-import cv2
-import face_recognition
-import firebase_admin
-from firebase_admin import credentials, firestore
-from PIL import Image, ImageTk, ImageDraw, ImageFilter
 from tkinter import messagebox as mbox
 import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
 
-if not firebase_admin._apps:
-    cred = credentials.Certificate("/Users/jk620/Desktop/ICK/serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
-
-db = firestore.client()
-
-def get_feature_vector(frame):
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    locations = face_recognition.face_locations(rgb)
-    if not locations:
-        return None
-    encodings = face_recognition.face_encodings(rgb, locations)
-    if not encodings:
-        return None
-    return encodings[0].tolist()
+from layout.firebase_service import get_db
 
 def find_user(vector, threshold=0.6):
     """
@@ -30,6 +12,9 @@ def find_user(vector, threshold=0.6):
      @:param threshold default 0.6
      @returns dictionary
     """
+    import face_recognition
+
+    db = get_db()
     users_ref = db.collection("users")
     docs = users_ref.stream()
 
@@ -66,6 +51,9 @@ def embedding_already_registered(vector, threshold=0.6):
     @param threshold default 0.6
     @return boolean
     """
+    import face_recognition
+
+    db= get_db()
     user_ref = db.collection("users")
     docs = user_ref.stream()
     unknown_embedding = np.array(vector)
@@ -116,6 +104,7 @@ def user_already_exists(username):
     @param username
     @return boolean
     """
+    db = get_db()
     doc = db.collection("users").document(username).get()
     return doc.exists
 
@@ -126,6 +115,8 @@ def compare_faces(known_vector, unknown_vector):
     @:param unknown_vector
     @returns boolean
     """
+    import face_recognition
+
     results = face_recognition.compare_faces([known_vector], unknown_vector)
     return results[0]
 
@@ -135,6 +126,9 @@ def get_feature_vector(frame):
     :param frame: BGR frame from OpenCV
     :return: feature vector list or None
     """
+    import cv2
+    import face_recognition
+
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     locations = face_recognition.face_locations(rgb)
 
@@ -146,5 +140,5 @@ def get_feature_vector(frame):
     if not encodings:
         mbox.showerror("Błąd", "Nie udało się pobrać cech twarzy. Spróbuj ponownie")
         return None
-
+    print(encodings[0].tolist())
     return encodings[0].tolist()
