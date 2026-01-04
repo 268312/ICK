@@ -1,0 +1,23 @@
+layout/serviceAccountKey.json
+*.json
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store\
+tests/test_data/__pycache__/
+tests/test_data
+*.npy
+
+build/
+dist/
